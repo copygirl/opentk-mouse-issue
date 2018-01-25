@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [{
+		"label": "build",
+		"group": { "kind": "build", "isDefault": true },
+		"presentation": { "reveal": "silent" },
+		"problemMatcher": "$msCompile",
+		
+		"type": "shell",
+		"command": "dotnet build",
+		"linux": { "options": { "env": {
+			"FrameworkPathOverride": "/usr/lib/mono/4.5/"
+		} } },
+	}]
+}

@@ -1,0 +1,11 @@
+{
+	"version": "0.2.0",
+	"configurations": [{
+		"name": "Launch",
+		"type": "mono",
+		"request": "launch",
+		"preLaunchTask": "build",
+		"program": "${workspaceRoot}/bin/Debug/net452/MouseIssue.exe",
+		"cwd": "${workspaceRoot}"
+	}]
+}
