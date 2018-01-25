@@ -4,9 +4,9 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net452</TargetFramework>
   </PropertyGroup>
-
+  
   <ItemGroup>
-    <PackageReference Include="OpenTK" Version="3.0.0-git00008" />
+    <PackageReference Include="OpenTK" Version="3.0.0-git00038" />
   </ItemGroup>
 
 </Project>
