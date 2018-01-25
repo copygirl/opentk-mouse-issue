@@ -20,8 +20,11 @@ namespace ModelViewer
 			get => _grabCursor;
 			set {
 				_grabCursor = value;
-				if (HideCursorWhenGrabbing)
-					CursorVisible = !value;
+				if (HideCursorWhenGrabbing) {
+					if (UseEmptyCursorInstead)
+						Cursor = value ? MouseCursor.Empty : MouseCursor.Default;
+					else CursorVisible = !value;
+				}
 			}
 		}
 		
@@ -29,6 +32,7 @@ namespace ModelViewer
 		private bool CenterOnMouseUp { get; set; } = true;
 		private bool CenterOnMouseMove { get; set; } = true;
 		private bool CenterOnUpdateFrame { get; set; } = false;
+		private bool UseEmptyCursorInstead { get; set; } = false;
 		
 		
 		static void Main(string[] args)
@@ -97,6 +101,10 @@ namespace ModelViewer
 					CenterOnUpdateFrame = !CenterOnUpdateFrame;
 					CenterOnMouseMove = false;
 					break;
+				case Key.Number5:
+					if (!GrabCursor)
+						UseEmptyCursorInstead = !UseEmptyCursorInstead;
+					break;
 			}
 		}
 		
@@ -160,7 +168,8 @@ namespace ModelViewer
 				$"(1) { nameof(HideCursorWhenGrabbing) }: { HideCursorWhenGrabbing }\n" +
 				$"(2) { nameof(CenterOnMouseUp) }: { CenterOnMouseUp }\n" +
 				$"(3) { nameof(CenterOnMouseMove) }: { CenterOnMouseMove }\n" +
-				$"(4) { nameof(CenterOnUpdateFrame) }: { CenterOnUpdateFrame }");
+				$"(4) { nameof(CenterOnUpdateFrame) }: { CenterOnUpdateFrame }\n" +
+				$"(5) { nameof(UseEmptyCursorInstead) }: { UseEmptyCursorInstead }");
 			
 			GL.Disable(EnableCap.Texture2D);
 			
