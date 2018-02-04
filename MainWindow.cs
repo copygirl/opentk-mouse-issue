@@ -12,27 +12,34 @@ namespace ModelViewer
 		public MonoBitmapFont DebugFont { get; private set; }
 		
 		
-		private int _moveX, _moveY;
-		private int _deltaX, _deltaY;
-		
-		private bool _grabCursor = false;
-		private bool GrabCursor {
-			get => _grabCursor;
+		private bool _mousePressed;
+		private bool MousePressed {
+			get => _mousePressed;
 			set {
-				_grabCursor = value;
-				if (HideCursorWhenGrabbing) {
-					if (UseEmptyCursorInstead)
-						Cursor = value ? MouseCursor.Empty : MouseCursor.Default;
-					else CursorVisible = !value;
-				}
+				_mousePressed = value;
+				if (UseCursorGrabbed) CursorGrabbed = value;
+				if (UseCursorVisible) CursorVisible = !value;
+				if (UseCursorEmpty) Cursor = value
+					? MouseCursor.Empty : MouseCursor.Default;
+				if (value ? CenterOnMouseDown : CenterOnMouseUp)
+					CenterMouse();
 			}
 		}
 		
-		private bool HideCursorWhenGrabbing { get; set; } = true;
-		private bool CenterOnMouseUp { get; set; } = true;
+		private Point MouseMovePos { get; set; }
+		private Point MouseMoveDelta { get; set; }
+		
+		private bool UseCursorGrabbed { get; set; } = true;
+		private bool UseCursorVisible { get; set; } = true;
+		private bool UseCursorEmpty { get; set; } = false;
+		
+		private bool CenterOnMouseDown { get; set; } = true;
+		private bool CenterOnMouseUp { get; set; } = false;
 		private bool CenterOnMouseMove { get; set; } = true;
 		private bool CenterOnUpdateFrame { get; set; } = false;
-		private bool UseEmptyCursorInstead { get; set; } = false;
+		
+		private Point? _swallowMouseMovePos = null;
+		private bool SwallowSetPositionMouseMove { get; set; } = true;
 		
 		
 		static void Main(string[] args)
@@ -58,25 +65,18 @@ namespace ModelViewer
 		
 		
 		protected override void OnMouseDown(MouseButtonEventArgs e)
-		{
-			GrabCursor = true;
-			CenterMouse();
-		}
+			=> MousePressed = true;
 		
 		protected override void OnMouseUp(MouseButtonEventArgs e)
-		{
-			GrabCursor = false;
-			if (CenterOnMouseUp)
-				CenterMouse();
-		}
+			=> MousePressed = false;
 		
 		protected override void OnMouseMove(MouseMoveEventArgs e)
 		{
-			_moveX = e.X;
-			_moveY = e.Y;
-			_deltaX = e.XDelta;
-			_deltaY = e.YDelta;
-			if (CenterOnMouseMove && GrabCursor)
+			MouseMovePos = new Point(e.X, e.Y);
+			if (_swallowMouseMovePos == MouseMovePos)
+				{ _swallowMouseMovePos = null; return; }
+			MouseMoveDelta = new Point(e.XDelta, e.YDelta);
+			if (MousePressed && CenterOnMouseMove)
 				CenterMouse();
 		}
 		
@@ -84,33 +84,48 @@ namespace ModelViewer
 		{
 			switch (e.Key) {
 				case Key.Escape:
-					Close();
+					Exit();
 					break;
+				
 				case Key.Number1:
-					if (!GrabCursor)
-						HideCursorWhenGrabbing = !HideCursorWhenGrabbing;
+					if (MousePressed) break;
+					UseCursorGrabbed = !UseCursorGrabbed;
 					break;
 				case Key.Number2:
-					CenterOnMouseUp = !CenterOnMouseUp;
+					if (MousePressed) break;
+					UseCursorVisible = !UseCursorVisible;
+					UseCursorEmpty = false;
 					break;
 				case Key.Number3:
+					if (MousePressed) break;
+					UseCursorEmpty = !UseCursorEmpty;
+					UseCursorVisible = false;
+					break;
+				
+				case Key.Number4:
+					CenterOnMouseDown = !CenterOnMouseDown;
+					break;
+				case Key.Number5:
+					CenterOnMouseUp = !CenterOnMouseUp;
+					break;
+				case Key.Number6:
 					CenterOnMouseMove = !CenterOnMouseMove;
 					CenterOnUpdateFrame = false;
 					break;
-				case Key.Number4:
+				case Key.Number7:
 					CenterOnUpdateFrame = !CenterOnUpdateFrame;
 					CenterOnMouseMove = false;
 					break;
-				case Key.Number5:
-					if (!GrabCursor)
-						UseEmptyCursorInstead = !UseEmptyCursorInstead;
+				
+				case Key.Number8:
+					SwallowSetPositionMouseMove = !SwallowSetPositionMouseMove;
 					break;
 			}
 		}
 		
 		protected override void OnUpdateFrame(FrameEventArgs e)
 		{
-			if (CenterOnUpdateFrame && GrabCursor)
+			if (MousePressed && CenterOnUpdateFrame)
 				CenterMouse();
 		}
 		
@@ -134,7 +149,7 @@ namespace ModelViewer
 			var mouseState = Mouse.GetState();
 			var mousePos   = new Point(mouseState.X, mouseState.Y);
 			DrawCursor(mousePos, Color.DarkRed, 12);
-			DrawCursor(new Point(_moveX, _moveY), Color.DarkGreen, 10);
+			DrawCursor(MouseMovePos, Color.DarkGreen, 10);
 			
 			GL.BindTexture(TextureTarget.Texture2D, DebugFont.GLTexture);
 			GL.Enable(EnableCap.Texture2D);
@@ -143,33 +158,39 @@ namespace ModelViewer
 			{
 				GL.Color3(Color.Black);
 				GL.Begin(PrimitiveType.Quads);
-				DebugFont.DrawVerts(x + 1, y + 1, text);
+					DebugFont.DrawVerts(x + 1, y + 1, text);
 				GL.End();
 				
 				GL.Color3(color);
 				GL.Begin(PrimitiveType.Quads);
-				DebugFont.DrawVerts(x, y, text);
+					DebugFont.DrawVerts(x, y, text);
 				GL.End();
 			}
 			
 			DrawTextWithOutline(4, 4, Color.Red,
-				$"Mouse Position:  { mousePos.X } : { mousePos.Y }");
+				$"Mouse Position:  { mousePos }");
 			
 			DrawTextWithOutline(4, 4 + DebugFont.GlyphSpacing.Height * 1, Color.Gold,
-				$"Cursor Position: { cursorPos.X } : { cursorPos.Y }\n");
+				$"Cursor Position: { cursorPos }\n");
 			
 			DrawTextWithOutline(4, 4 + DebugFont.GlyphSpacing.Height * 2, Color.LimeGreen,
-				$"Move Position:   { _moveX } : { _moveY }\n" +
-				$"Move Delta:      { _deltaX } : { _deltaY }");
+				$"Move Position:   { MouseMovePos }\n" +
+				$"Move Delta:      { MouseMoveDelta }");
 			
 			DrawTextWithOutline(4, 4 + DebugFont.GlyphSpacing.Height * 5, Color.Silver,
-				$"Click left mouse button to grab mouse.\n" +
 				$"Press number keys to enable/disable features:\n" +
-				$"(1) { nameof(HideCursorWhenGrabbing) }: { HideCursorWhenGrabbing }\n" +
-				$"(2) { nameof(CenterOnMouseUp) }: { CenterOnMouseUp }\n" +
-				$"(3) { nameof(CenterOnMouseMove) }: { CenterOnMouseMove }\n" +
-				$"(4) { nameof(CenterOnUpdateFrame) }: { CenterOnUpdateFrame }\n" +
-				$"(5) { nameof(UseEmptyCursorInstead) }: { UseEmptyCursorInstead }");
+				$"(1) { nameof(UseCursorGrabbed) }: { UseCursorGrabbed }\n" +
+				$"(2) { nameof(UseCursorVisible) }: { UseCursorVisible }\n" +
+				$"(3) { nameof(UseCursorEmpty) }: { UseCursorEmpty }\n" +
+				$"\n" +
+				$"(4) { nameof(CenterOnMouseDown) }: { CenterOnMouseDown }\n" +
+				$"(5) { nameof(CenterOnMouseUp) }: { CenterOnMouseUp }\n" +
+				$"(6) { nameof(CenterOnMouseMove) }: { CenterOnMouseMove }\n" +
+				$"(7) { nameof(CenterOnUpdateFrame) }: { CenterOnUpdateFrame }\n" +
+				$"\n" +
+				$"(8) { nameof(SwallowSetPositionMouseMove) }: { SwallowSetPositionMouseMove }\n" +
+				$"\n" +
+				$"(Esc) Exit");
 			
 			GL.Disable(EnableCap.Texture2D);
 			
@@ -179,9 +200,11 @@ namespace ModelViewer
 		
 		private void CenterMouse()
 		{
-			var centerX = Bounds.Left + Bounds.Width / 2;
-			var centerY = Bounds.Top + Bounds.Height / 2;
-			Mouse.SetPosition(centerX, centerY);
+			var centerWindow = new Point(Width / 2, Height / 2);
+			var centerScreen = PointToScreen(centerWindow);
+			Mouse.SetPosition(centerScreen.X, centerScreen.Y);
+			if (SwallowSetPositionMouseMove)
+				_swallowMouseMovePos = centerWindow;
 		}
 	}
 }
